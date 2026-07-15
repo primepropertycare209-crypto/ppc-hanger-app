@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#111314">
+<meta name="description" content="PPC Neighborhood Hanger Management System">
+<title>PPC Hangers</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23FF6B1A' width='192' height='192'/><text x='50%' y='50%' font-size='80' font-weight='700' fill='white' text-anchor='middle' dominant-baseline='middle'>H</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%23FF6B1A' width='180' height='180'/><text x='50%' y='50%' font-size='70' font-weight='700' fill='white' text-anchor='middle' dominant-baseline='middle'>H</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #1A1D1F; color: #F2F1ED; }
+body { display: flex; flex-direction: column; }
+
+.hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 0 16px; background: #111314;
+  border-bottom: 1px solid #2E3336; height: 50px; flex-shrink: 0;
+}
+.brand { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #FF6B1A; }
+.sync-status { font-size: 11px; color: #666; display: flex; gap: 4px; align-items: center; }
+.sync-status.online { color: #3FA34D; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.mode-switch { display: flex; gap: 4px; }
+.mode-btn { padding: 6px 12px; border-radius: 4px; border: 1px solid #3A3F43; background: none; color: #888; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.mode-btn.active { background: #FF6B1A; color: #111; border-color: #FF6B1A; }
+
+nav { display: flex; gap: 2px; }
+.tab { background: none; border: none; color: #888; font-size: 14px; font-weight: 600; padding: 7px 13px; cursor: pointer; border-radius: 4px; font-family: inherit; }
+.tab:hover { color: #F2F1ED; background: #232629; }
+.tab.active { color: #F2F1ED; background: #232629; }
+
+.panels { flex: 1; overflow: hidden; position: relative; }
+.panel { position: absolute; inset: 0; display: none; }
+.panel.active { display: flex; }
+
+#admin-map { flex-direction: row; }
+.sidebar { width: 280px; flex-shrink: 0; background: #1A1D1F; border-right: 1px solid #2E3336; display: flex; flex-direction: column; overflow: hidden; }
+.sb-head { padding: 12px 14px; border-bottom: 1px solid #2E3336; flex-shrink: 0; }
+.sb-head h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #666; margin-bottom: 8px; }
+.sb-head button { width: 100%; padding: 8px; background: #FF6B1A; color: #111; border: none; border-radius: 4px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 12px; }
+.neighborhood-list { flex: 1; overflow-y: auto; padding: 8px; }
+.neighborhood-item { display: flex; align-items: flex-start; gap: 8px; padding: 10px; border-radius: 4px; margin-bottom: 6px; background: #232629; border: 1px solid #2E3336; cursor: pointer; flex-direction: column; }
+.neighborhood-item:hover { border-color: #444; }
+.neighborhood-item.active { border-color: #FF6B1A; }
+.nb-name { font-size: 13px; font-weight: 600; }
+.nb-meta { font-size: 10px; color: #666; margin-top: 3px; }
+.nb-status { font-size: 10px; margin-top: 4px; padding: 2px 6px; border-radius: 3px; display: inline-block; }
+.nb-status.due { background: #FF6B1A22; color: #FF6B1A; font-weight: 600; }
+.nb-status.ok { background: #3FA34D22; color: #3FA34D; }
+.nb-del { background: none; border: none; color: #444; cursor: pointer; font-size: 11px; margin-top: 4px; padding: 0; }
+.nb-del:hover { color: #E2483A; }
+#map-container { flex: 1; }
+#map { height: 100%; }
+
+#admin-details { flex-direction: column; overflow-y: auto; padding: 24px 16px 60px; background: #1A1D1F; align-items: center; }
+.form-wrap { width: 100%; max-width: 500px; }
+.card { background: #232629; border: 1px solid #2E3336; border-radius: 6px; padding: 18px; margin-bottom: 16px; }
+.card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #666; margin-bottom: 14px; }
+label { display: block; font-size: 11px; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+input, select, textarea { width: 100%; background: #2C3033; border: 1px solid #3A3F43; color: #F2F1ED; font-size: 14px; padding: 10px 12px; border-radius: 4px; margin-bottom: 14px; font-family: inherit; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #FF6B1A; }
+select option { background: #2C3033; }
+textarea { min-height: 80px; resize: vertical; }
+.btn-main { width: 100%; background: #FF6B1A; color: #111; border: none; font-size: 14px; font-weight: 700; padding: 11px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+.btn-main:hover { opacity: .9; }
+.btn-main.secondary { background: #2C3033; color: #F2F1ED; border: 1px solid #3A3F43; }
+.btn-main.danger { background: #E2483A; color: #fff; }
+.empty-msg { color: #555; font-size: 13px; text-align: center; padding: 24px; }
+
+#admin-dashboard { flex-direction: column; overflow-y: auto; padding: 24px 16px 60px; background: #1A1D1F; align-items: center; }
+.dash-wrap { width: 100%; max-width: 700px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.stat-card { background: #232629; border: 1px solid #2E3336; border-radius: 6px; padding: 14px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; color: #FF6B1A; }
+.stat-lbl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+th { text-align: left; color: #666; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; padding: 8px; border-bottom: 1px solid #2E3336; }
+td { padding: 8px; border-bottom: 1px solid #1A1D1F; }
+tr:last-child td { border-bottom: none; }
+.due-badge { display: inline-block; background: #FF6B1A22; color: #FF6B1A; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+
+#employee-app { flex-direction: column; align-items: center; overflow-y: auto; padding: 20px 16px 80px; background: #1A1D1F; }
+.employee-card { width: 100%; max-width: 420px; background: #232629; border: 1px solid #2E3336; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 16px; }
+.app-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.app-subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
+.neighborhood-display { background: #1A1D1F; border: 2px solid #FF6B1A; border-radius: 6px; padding: 16px; margin-bottom: 16px; text-align: center; }
+.nb-display-name { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.nb-display-info { font-size: 12px; color: #888; }
+.timer { font-size: 48px; font-weight: 700; text-align: center; color: #FF6B1A; letter-spacing: 2px; font-variant-numeric: tabular-nums; margin: 12px 0 16px; font-family: 'Courier New', monospace; }
+.active-banner { background: #FF6B1A18; border: 1px solid #FF6B1A44; color: #FF6B1A; font-size: 13px; font-weight: 600; padding: 10px; border-radius: 4px; margin-bottom: 14px; }
+.btn-group { display: flex; gap: 8px; margin-bottom: 14px; }
+.btn-group button { flex: 1; }
+.form-section { background: #1A1D1F; border: 1px solid #2E3336; border-radius: 6px; padding: 16px; margin-bottom: 14px; }
+.form-section label { text-align: left; }
+.form-section textarea { margin-bottom: 0; }
+.completion-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.comp-btn { padding: 10px; border-radius: 4px; border: 2px solid #2E3336; background: none; color: #888; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.comp-btn.selected { border-color: #FF6B1A; background: #FF6B1A22; color: #FF6B1A; }
+
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 9999; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: #232629; border: 1px solid #3A3F43; border-radius: 8px; padding: 22px; width: 360px; max-width: 90vw; }
+.modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+.btn-cancel { flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #3A3F43; background: none; color: #888; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-save { flex: 2; padding: 10px; border-radius: 4px; border: none; background: #FF6B1A; color: #111; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+.leaflet-container { background: #2C3033; }
+.leaflet-bar a { background-color: #232629 !important; border-color: #3A3F43 !important; color: #F2F1ED !important; }
+.leaflet-bar a:hover { background-color: #2C3033 !important; }
+.leaflet-draw-toolbar a { background-color: #232629 !important; border-color: #3A3F43 !important; }
+.leaflet-draw-toolbar a svg path { fill: #F2F1ED !important; stroke: #F2F1ED !important; }
+.leaflet-tooltip { background: #232629; border: 1px solid #3A3F43; color: #F2F1ED; font-size: 12px; }
+.leaflet-attribution-flag { display: none !important; }
+.leaflet-control-attribution { background: #111314 !important; color: #444 !important; font-size: 10px; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3A3F43; border-radius: 3px; }
+
+@media (max-width: 640px) {
+  .sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid #2E3336; }
+  #admin-map { flex-direction: column; }
+  #map-container { flex: 1; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="brand">PPC Hangers</div>
+  <div style="flex:1;"></div>
+  <div class="sync-status" id="sync-status">
+    <span class="sync-dot"></span>
+    <span id="sync-text">Syncing...</span>
+  </div>
+  <div class="mode-switch">
+    <button class="mode-btn active" data-mode="admin">Admin</button>
+    <button class="mode-btn" data-mode="employee">Employee</button>
+  </div>
+</div>
+
+<!-- ADMIN MODE -->
+<div id="admin-mode" class="panels" style="display:flex;">
+
+  <div style="position: absolute; top: 50px; left: 0; right: 0; height: 40px; background: #111314; border-bottom: 1px solid #2E3336; display:flex; gap:2px; padding: 0 16px; z-index: 100;">
+    <button class="tab active" data-tab="admin-map">Map & Neighborhoods</button>
+    <button class="tab" data-tab="admin-details">Details</button>
+    <button class="tab" data-tab="admin-dashboard">Dashboard</button>
+  </div>
+
+  <div id="admin-map" class="panel active" style="top:90px;">
+    <div class="sidebar">
+      <div class="sb-head">
+        <h2>Neighborhoods</h2>
+        <button id="new-neighborhood-btn">+ Draw New</button>
+      </div>
+      <div class="neighborhood-list" id="neighborhood-list"></div>
+    </div>
+    <div id="map-container"><div id="map"></div></div>
+  </div>
+
+  <div id="admin-details" class="panel" style="top:90px;">
+    <div class="form-wrap">
+      <div id="no-selection" class="empty-msg">Select a neighborhood from the map to edit details.</div>
+      <div id="details-form" style="display:none;">
+        <div class="card">
+          <div class="card-title">Neighborhood Info</div>
+          <label>Name</label>
+          <input type="text" id="detail-name" placeholder="e.g., Downtown A">
+          <label>Frequency (days)</label>
+          <input type="number" id="detail-frequency" placeholder="e.g., 90" min="1">
+          <label>Expected Duration (days to complete)</label>
+          <input type="number" id="detail-duration" placeholder="e.g., 1" min="1">
+          <label>Notes / Instructions</label>
+          <textarea id="detail-notes" placeholder="Any special instructions for hangers..."></textarea>
+        </div>
+        <button class="btn-main" id="save-detail-btn">Save Changes</button>
+        <button class="btn-main secondary" id="cancel-detail-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="admin-dashboard" class="panel" style="top:90px;">
+    <div class="dash-wrap">
+      <div class="grid2">
+        <div class="stat-card">
+          <div class="stat-num" id="stat-total-neighborhoods">0</div>
+          <div class="stat-lbl">Total Neighborhoods</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-due-count">0</div>
+          <div class="stat-lbl">Due to Re-Hit</div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Due Soon (Next 7 Days)</div>
+        <table id="due-table" style="display:none;">
+          <thead>
+            <tr><th>Neighborhood</th><th>Days Until Due</th><th>Last Hit</th></tr>
+          </thead>
+          <tbody id="due-tbody"></tbody>
+        </table>
+        <div id="due-empty" class="empty-msg">No neighborhoods due in the next 7 days.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Completion Log</div>
+        <table id="log-table" style="display:none;">
+          <thead>
+            <tr><th>Neighborhood</th><th>Date</th><th>Hours</th><th>Status</th></tr>
+          </thead>
+          <tbody id="log-tbody"></tbody>
+        </table>
+        <div id="log-empty" class="empty-msg">No completions logged yet.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EMPLOYEE MODE -->
+<div id="employee-mode" class="panels" style="display:none;">
+  <div id="employee-app" class="panel active">
+    <div class="employee-card">
+      <div class="app-title">Today's Assignment</div>
+      <div id="no-assignment" class="empty-msg">No neighborhoods assigned for today.</div>
+      
+      <div id="assignment-view" style="display:none;">
+        <div class="neighborhood-display">
+          <div class="nb-display-name" id="emp-neighborhood-name">—</div>
+          <div class="nb-display-info">
+            <div id="emp-neighborhood-info"></div>
+          </div>
+        </div>
+
+        <div id="clock-status">
+          <div class="timer" id="timer">00:00:00</div>
+          <div class="btn-group">
+            <button class="btn-main" id="clock-btn">Start</button>
+          </div>
+        </div>
+
+        <div id="active-work" style="display:none;">
+          <div class="active-banner">You're clocked in on this neighborhood.</div>
+        </div>
+
+        <div id="completion-form" style="display:none;">
+          <div class="form-section">
+            <label>Did you complete this neighborhood?</label>
+            <div class="completion-options">
+              <button class="comp-btn" data-comp="yes">✓ Completed</button>
+              <button class="comp-btn" data-comp="no">Partial / Need More</button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <label>Notes (optional)</label>
+            <textarea id="emp-notes" placeholder="Ran into issues? Finished early? Leave a note..."></textarea>
+          </div>
+
+          <button class="btn-main" id="submit-work-btn">Submit & Clock Out</button>
+          <button class="btn-main secondary" id="discard-work-btn">Discard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">New Neighborhood</h3>
+    <label>Neighborhood Name</label>
+    <input type="text" id="modal-name" placeholder="e.g., Downtown A">
+    <label>Frequency (days)</label>
+    <input type="number" id="modal-frequency" value="90" min="1">
+    <label>Expected Duration (days)</label>
+    <input type="number" id="modal-duration" value="1" min="1">
+    <div class="modal-btns">
+      <button class="btn-cancel" id="modal-cancel">Cancel</button>
+      <button class="btn-save" id="modal-save">Create</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet-draw.js"></script>
+<script>
+
+// ============ SERVICE WORKER REGISTRATION ============
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(e => console.log('SW failed:', e));
+}
+
+// ============ DATA & STORAGE ============
+let neighborhoods = [];
+let completions = [];
+let activeSession = null;
+let selectedNeighborhoodId = null;
+let currentMode = 'admin';
+let timerInterval = null;
+let map = null;
+let drawnItems = null;
+let syncTimer = null;
+
+const COLORS = ['#FF6B1A', '#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
+const SYNC_INTERVAL = 10000; // 10 seconds
+
+// IndexedDB Setup
+const DB_NAME = 'ppc_hanger_db';
+const DB_VERSION = 1;
+let db = null;
+
+async function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      db = req.result;
+      resolve(db);
+    };
+    req.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains('neighborhoods')) {
+        database.createObjectStore('neighborhoods', { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains('completions')) {
+        database.createObjectStore('completions', { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+async function loadFromDB() {
+  const nbTx = db.transaction('neighborhoods', 'readonly');
+  const compTx = db.transaction('completions', 'readonly');
+  
+  neighborhoods = await new Promise((res) => {
+    const req = nbTx.objectStore('neighborhoods').getAll();
+    req.onsuccess = () => res(req.result || []);
+  });
+  
+  completions = await new Promise((res) => {
+    const req = compTx.objectStore('completions').getAll();
+    req.onsuccess = () => res(req.result || []);
+  });
+}
+
+async function saveToDB() {
+  const nbTx = db.transaction('neighborhoods', 'readwrite');
+  const compTx = db.transaction('completions', 'readwrite');
+  
+  neighborhoods.forEach(nb => {
+    nbTx.objectStore('neighborhoods').put(nb);
+  });
+  
+  completions.forEach(comp => {
+    compTx.objectStore('completions').put(comp);
+  });
+}
+
+// Cloud Sync (Firebase)
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyBqWQl5Z7vN8kQ9pP0xL1mN2oR3sT4uV5w',
+  projectId: 'ppc-hanger-system',
+  databaseURL: 'https://ppc-hanger-system-default-rtdb.firebaseio.com'
+};
+
+async function syncWithCloud() {
+  try {
+    const response = await fetch(`${FIREBASE_CONFIG.databaseURL}/data.json`);
+    if (!response.ok) throw new Error('Sync failed');
+    
+    const cloudData = await response.json();
+    if (cloudData) {
+      if (cloudData.neighborhoods) neighborhoods = cloudData.neighborhoods;
+      if (cloudData.completions) completions = cloudData.completions;
+      await saveToDB();
+      updateSyncStatus(true);
+    }
+  } catch (e) {
+    console.log('Cloud sync failed, using local data:', e.message);
+    updateSyncStatus(false);
+  }
+}
+
+async function pushToCloud() {
+  try {
+    await fetch(`${FIREBASE_CONFIG.databaseURL}/data.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ neighborhoods, completions })
+    });
+    updateSyncStatus(true);
+  } catch (e) {
+    console.log('Push to cloud failed:', e.message);
+    updateSyncStatus(false);
+  }
+}
+
+function updateSyncStatus(online) {
+  const status = document.getElementById('sync-status');
+  const text = document.getElementById('sync-text');
+  if (online) {
+    status.classList.add('online');
+    text.textContent = 'Synced';
+  } else {
+    status.classList.remove('online');
+    text.textContent = 'Offline';
+  }
+}
+
+// ============ ADMIN MAP ============
+function initMap() {
+  map = L.map('map').setView([34.05, -118.24], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: ''
+  }).addTo(map);
+
+  drawnItems = new L.FeatureGroup();
+  map.addLayer(drawnItems);
+
+  const drawControl = new L.Control.Draw({
+    draw: { marker: false, circlemarker: false, polyline: false, circle: false, rectangle: false },
+    edit: { featureGroup: drawnItems }
+  });
+  map.addControl(drawControl);
+
+  map.on('draw:created', (e) => { drawnItems.addLayer(e.layer); });
+  map.on('draw:edited', () => { refreshLayers(); });
+}
+
+function renderMap() {
+  drawnItems.clearLayers();
+  neighborhoods.forEach((nb, idx) => {
+    if (!nb.polygon) return;
+    const layer = L.geoJSON(nb.polygon, {
+      style: {
+        color: COLORS[idx % COLORS.length],
+        weight: 2,
+        opacity: selectedNeighborhoodId === nb.id ? 1 : 0.6,
+        fillOpacity: selectedNeighborhoodId === nb.id ? 0.25 : 0.15
+      }
+    });
+    layer.on('click', () => selectNeighborhood(nb.id));
+    drawnItems.addLayer(layer);
+  });
+}
+
+function refreshLayers() {
+  const geojson = drawnItems.toGeoJSON();
+  geojson.features.forEach((f, i) => {
+    if (neighborhoods[i]) neighborhoods[i].polygon = f.geometry;
+  });
+  save();
+  renderMap();
+}
+
+// ============ NEIGHBORHOOD CRUD ============
+function selectNeighborhood(id) {
+  selectedNeighborhoodId = id;
+  renderSidebar();
+  renderMap();
+  showDetailsTab();
+}
+
+function createNeighborhood() {
+  const name = document.getElementById('modal-name').value.trim();
+  const freq = parseInt(document.getElementById('modal-frequency').value) || 90;
+  const dur = parseInt(document.getElementById('modal-duration').value) || 1;
+  
+  if (!name) { alert('Enter a name'); return; }
+
+  const nb = {
+    id: 'd' + Date.now(),
+    name,
+    frequency: freq,
+    duration: dur,
+    notes: '',
+    polygon: null,
+    created: new Date().toISOString(),
+    lastCompleted: null
+  };
+  neighborhoods.push(nb);
+  save();
+  closeModal();
+  selectNeighborhood(nb.id);
+  renderSidebar();
+  renderDashboard();
+}
+
+function updateSelectedNeighborhood() {
+  const nb = neighborhoods.find(n => n.id === selectedNeighborhoodId);
+  if (!nb) return;
+  
+  nb.name = document.getElementById('detail-name').value.trim();
+  nb.frequency = parseInt(document.getElementById('detail-frequency').value) || 90;
+  nb.duration = parseInt(document.getElementById('detail-duration').value) || 1;
+  nb.notes = document.getElementById('detail-notes').value;
+  
+  save();
+  renderSidebar();
+  renderDashboard();
+  document.getElementById('no-selection').style.display = 'block';
+  document.getElementById('details-form').style.display = 'none';
+}
+
+function deleteNeighborhood(id) {
+  if (!confirm('Delete this neighborhood?')) return;
+  neighborhoods = neighborhoods.filter(n => n.id !== id);
+  completions = completions.filter(c => c.neighborhoodId !== id);
+  if (selectedNeighborhoodId === id) selectedNeighborhoodId = null;
+  save();
+  renderSidebar();
+  renderMap();
+  renderDashboard();
+  document.getElementById('no-selection').style.display = 'block';
+  document.getElementById('details-form').style.display = 'none';
+}
+
+function renderSidebar() {
+  const list = document.getElementById('neighborhood-list');
+  list.innerHTML = '';
+  neighborhoods.forEach(nb => {
+    const due = isDue(nb);
+    const item = document.createElement('div');
+    item.className = 'neighborhood-item' + (selectedNeighborhoodId === nb.id ? ' active' : '');
+    const lastHit = nb.lastCompleted ? new Date(nb.lastCompleted).toLocaleDateString() : 'Never';
+    const statusClass = due ? 'due' : 'ok';
+    const statusText = due ? '⚠ Due to re-hit' : `✓ In rotation`;
+    
+    item.innerHTML = `
+      <div class="nb-name">${escapeHtml(nb.name)}</div>
+      <div class="nb-meta">Every ${nb.frequency} days · ${nb.duration}d to complete</div>
+      <div class="nb-meta">Last hit: ${lastHit}</div>
+      <div class="nb-status ${statusClass}">${statusText}</div>
+      <button class="nb-del" data-id="${nb.id}">Delete</button>
+    `;
+    item.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('nb-del')) selectNeighborhood(nb.id);
+    });
+    item.querySelector('.nb-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteNeighborhood(nb.id);
+    });
+    list.appendChild(item);
+  });
+}
+
+function showDetailsTab() {
+  const nb = neighborhoods.find(n => n.id === selectedNeighborhoodId);
+  if (!nb) {
+    document.getElementById('no-selection').style.display = 'block';
+    document.getElementById('details-form').style.display = 'none';
+    return;
+  }
+  
+  document.getElementById('detail-name').value = nb.name;
+  document.getElementById('detail-frequency').value = nb.frequency;
+  document.getElementById('detail-duration').value = nb.duration;
+  document.getElementById('detail-notes').value = nb.notes;
+  document.getElementById('no-selection').style.display = 'none';
+  document.getElementById('details-form').style.display = 'block';
+}
+
+// ============ DASHBOARD ============
+function isDue(nb) {
+  if (!nb.lastCompleted) return true;
+  const last = new Date(nb.lastCompleted);
+  const nextDue = new Date(last.getTime() + nb.frequency * 24 * 60 * 60 * 1000);
+  return nextDue <= new Date();
+}
+
+function daysUntilDue(nb) {
+  if (!nb.lastCompleted) return 0;
+  const last = new Date(nb.lastCompleted);
+  const nextDue = new Date(last.getTime() + nb.frequency * 24 * 60 * 60 * 1000);
+  const diff = nextDue - new Date();
+  return Math.ceil(diff / (24 * 60 * 60 * 1000));
+}
+
+function renderDashboard() {
+  document.getElementById('stat-total-neighborhoods').textContent = neighborhoods.length;
+  const due = neighborhoods.filter(isDue);
+  document.getElementById('stat-due-count').textContent = due.length;
+
+  const dueSoon = neighborhoods.filter(n => {
+    const days = daysUntilDue(n);
+    return days >= -1 && days <= 7;
+  }).sort((a, b) => daysUntilDue(a) - daysUntilDue(b));
+
+  const dueTable = document.getElementById('due-table');
+  const dueTbody = document.getElementById('due-tbody');
+  const dueEmpty = document.getElementById('due-empty');
+  
+  dueTbody.innerHTML = '';
+  if (dueSoon.length === 0) {
+    dueTable.style.display = 'none';
+    dueEmpty.style.display = 'block';
+  } else {
+    dueTable.style.display = 'table';
+    dueEmpty.style.display = 'none';
+    dueSoon.forEach(nb => {
+      const days = daysUntilDue(nb);
+      const lastHit = nb.lastCompleted ? new Date(nb.lastCompleted).toLocaleDateString() : 'Never';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(nb.name)}</td>
+        <td><span class="due-badge">${days <= 0 ? 'NOW' : days + ' days'}</span></td>
+        <td>${lastHit}</td>
+      `;
+      dueTbody.appendChild(tr);
+    });
+  }
+
+  const logTable = document.getElementById('log-table');
+  const logTbody = document.getElementById('log-tbody');
+  const logEmpty = document.getElementById('log-empty');
+  
+  logTbody.innerHTML = '';
+  if (completions.length === 0) {
+    logTable.style.display = 'none';
+    logEmpty.style.display = 'block';
+  } else {
+    logTable.style.display = 'table';
+    logEmpty.style.display = 'none';
+    const sorted = completions.slice().reverse().slice(0, 20);
+    sorted.forEach(comp => {
+      const nb = neighborhoods.find(n => n.id === comp.neighborhoodId);
+      const tr = document.createElement('tr');
+      const status = comp.completed ? '✓ Complete' : 'Partial';
+      tr.innerHTML = `
+        <td>${nb ? escapeHtml(nb.name) : '—'}</td>
+        <td>${new Date(comp.date).toLocaleDateString()}</td>
+        <td>${comp.hours.toFixed(2)} hrs</td>
+        <td>${status}</td>
+      `;
+      logTbody.appendChild(tr);
+    });
+  }
+}
+
+// ============ EMPLOYEE APP ============
+function getTodaysAssignment() {
+  const due = neighborhoods.filter(isDue);
+  if (due.length === 0) return null;
+  return due.sort((a, b) => daysUntilDue(a) - daysUntilDue(b))[0];
+}
+
+function renderEmployeeApp() {
+  const nb = getTodaysAssignment();
+  const noAssign = document.getElementById('no-assignment');
+  const assignView = document.getElementById('assignment-view');
+  
+  if (!nb) {
+    noAssign.style.display = 'block';
+    assignView.style.display = 'none';
+    return;
+  }
+
+  noAssign.style.display = 'none';
+  assignView.style.display = 'block';
+  
+  document.getElementById('emp-neighborhood-name').textContent = nb.name;
+  const info = `Expected: ${nb.duration} day(s)<br>
+${nb.notes ? 'Notes: ' + escapeHtml(nb.notes) : ''}`;
+  document.getElementById('emp-neighborhood-info').innerHTML = info;
+
+  renderClockUI();
+}
+
+function renderClockUI() {
+  const nb = getTodaysAssignment();
+  if (!nb) return;
+
+  const clockStat = document.getElementById('clock-status');
+  const activeWork = document.getElementById('active-work');
+  const compForm = document.getElementById('completion-form');
+
+  if (activeSession) {
+    clockStat.style.display = 'none';
+    activeWork.style.display = 'block';
+    compForm.style.display = 'block';
+    startTimer();
+  } else {
+    clockStat.style.display = 'block';
+    activeWork.style.display = 'none';
+    compForm.style.display = 'none';
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('timer').textContent = '00:00:00';
+  }
+}
+
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  function tick() {
+    const e = Date.now() - activeSession.clockIn;
+    const h = Math.floor(e/3600000), m = Math.floor((e%3600000)/60000), s = Math.floor((e%60000)/1000);
+    document.getElementById('timer').textContent =
+      String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+  tick();
+  timerInterval = setInterval(tick, 1000);
+}
+
+// ============ SAVE/LOAD ============
+async function save() {
+  await saveToDB();
+  await pushToCloud();
+}
+
+// ============ MODAL ============
+function openModal() {
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-frequency').value = '90';
+  document.getElementById('modal-duration').value = '1';
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('modal-name').focus();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+// ============ MODE SWITCH ============
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = btn.dataset.mode;
+    
+    document.getElementById('admin-mode').style.display = currentMode === 'admin' ? 'flex' : 'none';
+    document.getElementById('employee-mode').style.display = currentMode === 'employee' ? 'flex' : 'none';
+    
+    if (currentMode === 'employee') {
+      renderEmployeeApp();
+    } else if (currentMode === 'admin') {
+      setTimeout(() => map?.invalidateSize(), 50);
+    }
+  });
+});
+
+// ============ TABS ============
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#admin-map, #admin-details, #admin-dashboard').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+    
+    if (tab.dataset.tab === 'admin-map') setTimeout(() => map?.invalidateSize(), 50);
+    if (tab.dataset.tab === 'admin-details') showDetailsTab();
+    if (tab.dataset.tab === 'admin-dashboard') renderDashboard();
+  });
+});
+
+// ============ ADMIN BUTTONS ============
+document.getElementById('new-neighborhood-btn').addEventListener('click', openModal);
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-save').addEventListener('click', createNeighborhood);
+document.getElementById('modal-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') createNeighborhood();
+});
+
+document.getElementById('save-detail-btn').addEventListener('click', updateSelectedNeighborhood);
+document.getElementById('cancel-detail-btn').addEventListener('click', () => {
+  document.getElementById('no-selection').style.display = 'block';
+  document.getElementById('details-form').style.display = 'none';
+});
+
+// ============ EMPLOYEE BUTTONS ============
+document.getElementById('clock-btn').addEventListener('click', () => {
+  const nb = getTodaysAssignment();
+  if (!nb) return;
+  activeSession = { neighborhoodId: nb.id, clockIn: Date.now() };
+  save();
+  renderEmployeeApp();
+});
+
+document.querySelectorAll('.comp-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+});
+
+document.getElementById('submit-work-btn').addEventListener('click', () => {
+  const nb = getTodaysAssignment();
+  if (!nb || !activeSession) return;
+  
+  const elapsed = Date.now() - activeSession.clockIn;
+  const hours = Math.round((elapsed / 3600000) * 100) / 100;
+  const completed = document.querySelector('.comp-btn.selected')?.dataset.comp === 'yes';
+  const notes = document.getElementById('emp-notes').value;
+  
+  completions.push({
+    id: 'c' + Date.now(),
+    neighborhoodId: nb.id,
+    date: new Date().toISOString(),
+    hours,
+    completed,
+    notes
+  });
+  
+  nb.lastCompleted = new Date().toISOString();
+  
+  activeSession = null;
+  document.getElementById('emp-notes').value = '';
+  document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('selected'));
+  
+  save();
+  renderEmployeeApp();
+  renderDashboard();
+  alert('Work logged! Thanks.');
+});
+
+document.getElementById('discard-work-btn').addEventListener('click', () => {
+  if (!confirm('Discard this time entry?')) return;
+  activeSession = null;
+  document.getElementById('emp-notes').value = '';
+  document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('selected'));
+  save();
+  renderEmployeeApp();
+});
+
+// ============ HELPERS ============
+function escapeHtml(text) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// ============ INIT ============
+window.addEventListener('load', async () => {
+  await initDB();
+  await loadFromDB();
+  await syncWithCloud();
+  
+  initMap();
+  renderSidebar();
+  renderMap();
+  renderEmployeeApp();
+  renderDashboard();
+  
+  // Periodic cloud sync
+  syncTimer = setInterval(() => {
+    syncWithCloud();
+    pushToCloud();
+  }, SYNC_INTERVAL);
+});
+
+// Cleanup
+window.addEventListener('beforeunload', () => {
+  if (syncTimer) clearInterval(syncTimer);
+  if (timerInterval) clearInterval(timerInterval);
+});
+
+</script>
+</body>
+</html>
