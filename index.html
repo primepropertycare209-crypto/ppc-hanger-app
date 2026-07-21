@@ -20,6 +20,7 @@ body { display: flex; flex-direction: column; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; padding: 0 16px; background: #111314;
   border-bottom: 1px solid #2E3336; height: 50px; flex-shrink: 0;
+  flex-wrap: wrap;
 }
 .brand { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #FF6B1A; }
 .sync-status { font-size: 11px; color: #666; display: flex; gap: 4px; align-items: center; }
@@ -29,8 +30,8 @@ body { display: flex; flex-direction: column; }
 .mode-btn { padding: 6px 12px; border-radius: 4px; border: 1px solid #3A3F43; background: none; color: #888; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .mode-btn.active { background: #FF6B1A; color: #111; border-color: #FF6B1A; }
 
-nav { display: flex; gap: 2px; }
-.tab { background: none; border: none; color: #888; font-size: 14px; font-weight: 600; padding: 7px 13px; cursor: pointer; border-radius: 4px; font-family: inherit; }
+nav { display: flex; gap: 2px; flex-wrap: wrap; }
+.tab { background: none; border: none; color: #888; font-size: 14px; font-weight: 600; padding: 7px 13px; cursor: pointer; border-radius: 4px; font-family: inherit; white-space: nowrap; }
 .tab:hover { color: #F2F1ED; background: #232629; }
 .tab.active { color: #F2F1ED; background: #232629; }
 
@@ -58,6 +59,7 @@ nav { display: flex; gap: 2px; }
 #map { height: 100%; }
 
 #admin-details { flex-direction: column; overflow-y: auto; padding: 24px 16px 60px; background: #1A1D1F; align-items: center; }
+#admin-settings { flex-direction: column; overflow-y: auto; padding: 24px 16px 60px; background: #1A1D1F; align-items: center; }
 .form-wrap { width: 100%; max-width: 500px; }
 .card { background: #232629; border: 1px solid #2E3336; border-radius: 6px; padding: 18px; margin-bottom: 16px; }
 .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #666; margin-bottom: 14px; }
@@ -68,7 +70,7 @@ select option { background: #2C3033; }
 textarea { min-height: 80px; resize: vertical; }
 .btn-main { width: 100%; background: #FF6B1A; color: #111; border: none; font-size: 14px; font-weight: 700; padding: 11px; border-radius: 4px; cursor: pointer; font-family: inherit; }
 .btn-main:hover { opacity: .9; }
-.btn-main.secondary { background: #2C3033; color: #F2F1ED; border: 1px solid #3A3F43; }
+.btn-main.secondary { background: #2C3033; color: #F2F1ED; border: 1px solid #3A3F43; margin-bottom: 8px; }
 .btn-main.danger { background: #E2483A; color: #fff; }
 .empty-msg { color: #555; font-size: 13px; text-align: center; padding: 24px; }
 
@@ -104,11 +106,15 @@ tr:last-child td { border-bottom: none; }
 
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 9999; align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
-.modal { background: #232629; border: 1px solid #3A3F43; border-radius: 8px; padding: 22px; width: 360px; max-width: 90vw; }
+.modal { background: #232629; border: 1px solid #3A3F43; border-radius: 8px; padding: 22px; width: 360px; max-width: 90vw; max-height: 90vh; overflow-y: auto; }
 .modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
 .modal-btns { display: flex; gap: 8px; margin-top: 16px; }
 .btn-cancel { flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #3A3F43; background: none; color: #888; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .btn-save { flex: 2; padding: 10px; border-radius: 4px; border: none; background: #FF6B1A; color: #111; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+p { font-size: 12px; line-height: 1.6; }
+a { color: #FF6B1A; text-decoration: none; }
+a:hover { text-decoration: underline; }
 
 .leaflet-container { background: #2C3033; }
 .leaflet-bar a { background-color: #232629 !important; border-color: #3A3F43 !important; color: #F2F1ED !important; }
@@ -124,9 +130,10 @@ tr:last-child td { border-bottom: none; }
 ::-webkit-scrollbar-thumb { background: #3A3F43; border-radius: 3px; }
 
 @media (max-width: 640px) {
-  .sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid #2E3336; }
+  .sidebar { width: 100%; height: 180px; border-right: none; border-bottom: 1px solid #2E3336; }
   #admin-map { flex-direction: column; }
   #map-container { flex: 1; }
+  .tab { font-size: 12px; padding: 6px 10px; }
 }
 </style>
 </head>
@@ -137,7 +144,7 @@ tr:last-child td { border-bottom: none; }
   <div style="flex:1;"></div>
   <div class="sync-status" id="sync-status">
     <span class="sync-dot"></span>
-    <span id="sync-text">Syncing...</span>
+    <span id="sync-text">Init...</span>
   </div>
   <div class="mode-switch">
     <button class="mode-btn active" data-mode="admin">Admin</button>
@@ -148,10 +155,11 @@ tr:last-child td { border-bottom: none; }
 <!-- ADMIN MODE -->
 <div id="admin-mode" class="panels" style="display:flex;">
 
-  <div style="position: absolute; top: 50px; left: 0; right: 0; height: 40px; background: #111314; border-bottom: 1px solid #2E3336; display:flex; gap:2px; padding: 0 16px; z-index: 100;">
+  <div style="position: absolute; top: 50px; left: 0; right: 0; height: 40px; background: #111314; border-bottom: 1px solid #2E3336; display:flex; gap:2px; padding: 0 16px; z-index: 100; overflow-x: auto;">
     <button class="tab active" data-tab="admin-map">Map & Neighborhoods</button>
     <button class="tab" data-tab="admin-details">Details</button>
     <button class="tab" data-tab="admin-dashboard">Dashboard</button>
+    <button class="tab" data-tab="admin-settings">Settings</button>
   </div>
 
   <div id="admin-map" class="panel active" style="top:90px;">
@@ -211,7 +219,7 @@ tr:last-child td { border-bottom: none; }
       </div>
 
       <div class="card">
-        <div class="card-title">Completion Log</div>
+        <div class="card-title">Recent Completions</div>
         <table id="log-table" style="display:none;">
           <thead>
             <tr><th>Neighborhood</th><th>Date</th><th>Hours</th><th>Status</th></tr>
@@ -219,6 +227,35 @@ tr:last-child td { border-bottom: none; }
           <tbody id="log-tbody"></tbody>
         </table>
         <div id="log-empty" class="empty-msg">No completions logged yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="admin-settings" class="panel" style="top:90px;">
+    <div class="form-wrap">
+      <div class="card">
+        <div class="card-title">Firebase Setup</div>
+        <p>To enable cloud sync between phones, set up a Firebase Realtime Database and paste your config below. <a href="https://console.firebase.google.com" target="_blank">Create Firebase project here</a>.</p>
+        <label>Firebase API Key</label>
+        <input type="text" id="firebase-api-key" placeholder="Your Firebase API Key">
+        <label>Firebase Project ID</label>
+        <input type="text" id="firebase-project-id" placeholder="Your Firebase Project ID">
+        <label>Firebase Database URL</label>
+        <input type="text" id="firebase-db-url" placeholder="https://your-project.firebaseio.com">
+        <button class="btn-main" id="save-firebase-btn">Save Firebase Config</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Data Export</div>
+        <p>Download all neighborhoods and completion logs as a backup file.</p>
+        <button class="btn-main secondary" id="export-btn">Download Backup</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Data Import</div>
+        <p>Restore data from a backup file.</p>
+        <input type="file" id="import-file" accept=".json" style="margin-bottom: 0;">
+        <button class="btn-main secondary" id="import-btn" style="margin-top: 14px;">Import Backup</button>
       </div>
     </div>
   </div>
@@ -292,14 +329,43 @@ tr:last-child td { border-bottom: none; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet-draw.js"></script>
-<script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js"></script>
 
-// ============ SERVICE WORKER REGISTRATION ============
+<script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(e => console.log('SW failed:', e));
+  navigator.serviceWorker.register('sw.js').catch(e => console.log('SW registration skipped'));
 }
 
-// ============ DATA & STORAGE ============
+let firebaseConfig = {
+  apiKey: localStorage.getItem('fbApiKey') || '',
+  projectId: localStorage.getItem('fbProjectId') || '',
+  databaseURL: localStorage.getItem('fbDatabaseURL') || ''
+};
+
+let db = null;
+let firebaseReady = false;
+
+function initFirebase() {
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.databaseURL) {
+    updateSyncStatus('offline', 'Awaiting Firebase setup');
+    return;
+  }
+  
+  try {
+    if (!window.firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    db = firebase.database();
+    firebaseReady = true;
+    updateSyncStatus('online', 'Connected');
+    startCloudSync();
+  } catch (e) {
+    console.log('Firebase error:', e.message);
+    updateSyncStatus('offline', 'Firebase error');
+  }
+}
+
 let neighborhoods = [];
 let completions = [];
 let activeSession = null;
@@ -311,20 +377,18 @@ let drawnItems = null;
 let syncTimer = null;
 
 const COLORS = ['#FF6B1A', '#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
-const SYNC_INTERVAL = 10000; // 10 seconds
 
-// IndexedDB Setup
 const DB_NAME = 'ppc_hanger_db';
 const DB_VERSION = 1;
-let db = null;
+let indexedDB_instance = null;
 
-async function initDB() {
+async function initIndexedDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onerror = () => reject(req.error);
     req.onsuccess = () => {
-      db = req.result;
-      resolve(db);
+      indexedDB_instance = req.result;
+      resolve(indexedDB_instance);
     };
     req.onupgradeneeded = (e) => {
       const database = e.target.result;
@@ -338,9 +402,11 @@ async function initDB() {
   });
 }
 
-async function loadFromDB() {
-  const nbTx = db.transaction('neighborhoods', 'readonly');
-  const compTx = db.transaction('completions', 'readonly');
+async function loadFromIndexedDB() {
+  if (!indexedDB_instance) return;
+  
+  const nbTx = indexedDB_instance.transaction('neighborhoods', 'readonly');
+  const compTx = indexedDB_instance.transaction('completions', 'readonly');
   
   neighborhoods = await new Promise((res) => {
     const req = nbTx.objectStore('neighborhoods').getAll();
@@ -353,9 +419,14 @@ async function loadFromDB() {
   });
 }
 
-async function saveToDB() {
-  const nbTx = db.transaction('neighborhoods', 'readwrite');
-  const compTx = db.transaction('completions', 'readwrite');
+async function saveToIndexedDB() {
+  if (!indexedDB_instance) return;
+  
+  const nbTx = indexedDB_instance.transaction('neighborhoods', 'readwrite');
+  const compTx = indexedDB_instance.transaction('completions', 'readwrite');
+  
+  nbTx.objectStore('neighborhoods').clear();
+  compTx.objectStore('completions').clear();
   
   neighborhoods.forEach(nb => {
     nbTx.objectStore('neighborhoods').put(nb);
@@ -366,58 +437,56 @@ async function saveToDB() {
   });
 }
 
-// Cloud Sync (Firebase)
-const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyBqWQl5Z7vN8kQ9pP0xL1mN2oR3sT4uV5w',
-  projectId: 'ppc-hanger-system',
-  databaseURL: 'https://ppc-hanger-system-default-rtdb.firebaseio.com'
-};
-
-async function syncWithCloud() {
+async function syncFromCloud() {
+  if (!firebaseReady || !db) return;
+  
   try {
-    const response = await fetch(`${FIREBASE_CONFIG.databaseURL}/data.json`);
-    if (!response.ok) throw new Error('Sync failed');
-    
-    const cloudData = await response.json();
-    if (cloudData) {
-      if (cloudData.neighborhoods) neighborhoods = cloudData.neighborhoods;
-      if (cloudData.completions) completions = cloudData.completions;
-      await saveToDB();
-      updateSyncStatus(true);
+    const snapshot = await db.ref('/data').get();
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      if (data.neighborhoods) neighborhoods = data.neighborhoods;
+      if (data.completions) completions = data.completions;
+      await saveToIndexedDB();
+      refreshUI();
+      updateSyncStatus('online', 'Synced');
     }
   } catch (e) {
-    console.log('Cloud sync failed, using local data:', e.message);
-    updateSyncStatus(false);
+    console.log('Cloud sync error:', e.message);
   }
 }
 
 async function pushToCloud() {
+  if (!firebaseReady || !db) return;
+  
   try {
-    await fetch(`${FIREBASE_CONFIG.databaseURL}/data.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ neighborhoods, completions })
-    });
-    updateSyncStatus(true);
+    await db.ref('/data').set({ neighborhoods, completions });
+    updateSyncStatus('online', 'Synced');
   } catch (e) {
-    console.log('Push to cloud failed:', e.message);
-    updateSyncStatus(false);
+    console.log('Push error:', e.message);
   }
 }
 
-function updateSyncStatus(online) {
-  const status = document.getElementById('sync-status');
-  const text = document.getElementById('sync-text');
-  if (online) {
-    status.classList.add('online');
-    text.textContent = 'Synced';
+function startCloudSync() {
+  syncFromCloud();
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(() => {
+    syncFromCloud();
+    pushToCloud();
+  }, 10000);
+}
+
+function updateSyncStatus(status, text) {
+  const el = document.getElementById('sync-status');
+  const textEl = document.getElementById('sync-text');
+  
+  if (status === 'online') {
+    el.classList.add('online');
   } else {
-    status.classList.remove('online');
-    text.textContent = 'Offline';
+    el.classList.remove('online');
   }
+  textEl.textContent = text;
 }
 
-// ============ ADMIN MAP ============
 function initMap() {
   map = L.map('map').setView([34.05, -118.24], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -460,10 +529,8 @@ function refreshLayers() {
     if (neighborhoods[i]) neighborhoods[i].polygon = f.geometry;
   });
   save();
-  renderMap();
 }
 
-// ============ NEIGHBORHOOD CRUD ============
 function selectNeighborhood(id) {
   selectedNeighborhoodId = id;
   renderSidebar();
@@ -570,7 +637,6 @@ function showDetailsTab() {
   document.getElementById('details-form').style.display = 'block';
 }
 
-// ============ DASHBOARD ============
 function isDue(nb) {
   if (!nb.lastCompleted) return true;
   const last = new Date(nb.lastCompleted);
@@ -647,7 +713,6 @@ function renderDashboard() {
   }
 }
 
-// ============ EMPLOYEE APP ============
 function getTodaysAssignment() {
   const due = neighborhoods.filter(isDue);
   if (due.length === 0) return null;
@@ -669,8 +734,7 @@ function renderEmployeeApp() {
   assignView.style.display = 'block';
   
   document.getElementById('emp-neighborhood-name').textContent = nb.name;
-  const info = `Expected: ${nb.duration} day(s)<br>
-${nb.notes ? 'Notes: ' + escapeHtml(nb.notes) : ''}`;
+  const info = `Expected: ${nb.duration} day(s)<br>${nb.notes ? 'Notes: ' + escapeHtml(nb.notes) : ''}`;
   document.getElementById('emp-neighborhood-info').innerHTML = info;
 
   renderClockUI();
@@ -710,13 +774,70 @@ function startTimer() {
   timerInterval = setInterval(tick, 1000);
 }
 
-// ============ SAVE/LOAD ============
 async function save() {
-  await saveToDB();
+  await saveToIndexedDB();
   await pushToCloud();
 }
 
-// ============ MODAL ============
+function refreshUI() {
+  renderSidebar();
+  renderMap();
+  renderEmployeeApp();
+  renderDashboard();
+}
+
+document.getElementById('save-firebase-btn').addEventListener('click', () => {
+  const apiKey = document.getElementById('firebase-api-key').value.trim();
+  const projectId = document.getElementById('firebase-project-id').value.trim();
+  const dbUrl = document.getElementById('firebase-db-url').value.trim();
+  
+  if (!apiKey || !projectId || !dbUrl) {
+    alert('Fill in all Firebase fields');
+    return;
+  }
+  
+  localStorage.setItem('fbApiKey', apiKey);
+  localStorage.setItem('fbProjectId', projectId);
+  localStorage.setItem('fbDatabaseURL', dbUrl);
+  
+  firebaseConfig = { apiKey, projectId, databaseURL: dbUrl };
+  initFirebase();
+  alert('Firebase configured! Cloud sync enabled.');
+});
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  const data = { neighborhoods, completions, exportDate: new Date().toISOString() };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}));
+  a.download = 'ppc-hanger-backup-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+});
+
+document.getElementById('import-btn').addEventListener('click', () => {
+  document.getElementById('import-file').click();
+});
+
+document.getElementById('import-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.neighborhoods) neighborhoods = data.neighborhoods;
+      if (data.completions) completions = data.completions;
+      save();
+      refreshUI();
+      alert('Imported successfully!');
+    } catch (err) {
+      alert('Import failed. Check the file format.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
 function openModal() {
   document.getElementById('modal-name').value = '';
   document.getElementById('modal-frequency').value = '90';
@@ -729,7 +850,6 @@ function closeModal() {
   document.getElementById('modal').classList.remove('open');
 }
 
-// ============ MODE SWITCH ============
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -747,21 +867,24 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
   });
 });
 
-// ============ TABS ============
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#admin-map, #admin-details, #admin-dashboard').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('#admin-map, #admin-details, #admin-dashboard, #admin-settings').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById(tab.dataset.tab).classList.add('active');
     
     if (tab.dataset.tab === 'admin-map') setTimeout(() => map?.invalidateSize(), 50);
     if (tab.dataset.tab === 'admin-details') showDetailsTab();
     if (tab.dataset.tab === 'admin-dashboard') renderDashboard();
+    if (tab.dataset.tab === 'admin-settings') {
+      document.getElementById('firebase-api-key').value = localStorage.getItem('fbApiKey') || '';
+      document.getElementById('firebase-project-id').value = localStorage.getItem('fbProjectId') || '';
+      document.getElementById('firebase-db-url').value = localStorage.getItem('fbDatabaseURL') || '';
+    }
   });
 });
 
-// ============ ADMIN BUTTONS ============
 document.getElementById('new-neighborhood-btn').addEventListener('click', openModal);
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
 document.getElementById('modal-save').addEventListener('click', createNeighborhood);
@@ -775,7 +898,6 @@ document.getElementById('cancel-detail-btn').addEventListener('click', () => {
   document.getElementById('details-form').style.display = 'none';
 });
 
-// ============ EMPLOYEE BUTTONS ============
 document.getElementById('clock-btn').addEventListener('click', () => {
   const nb = getTodaysAssignment();
   if (!nb) return;
@@ -830,32 +952,22 @@ document.getElementById('discard-work-btn').addEventListener('click', () => {
   renderEmployeeApp();
 });
 
-// ============ HELPERS ============
 function escapeHtml(text) {
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// ============ INIT ============
 window.addEventListener('load', async () => {
-  await initDB();
-  await loadFromDB();
-  await syncWithCloud();
-  
+  await initIndexedDB();
+  await loadFromIndexedDB();
+  initFirebase();
   initMap();
   renderSidebar();
   renderMap();
   renderEmployeeApp();
   renderDashboard();
-  
-  // Periodic cloud sync
-  syncTimer = setInterval(() => {
-    syncWithCloud();
-    pushToCloud();
-  }, SYNC_INTERVAL);
 });
 
-// Cleanup
 window.addEventListener('beforeunload', () => {
   if (syncTimer) clearInterval(syncTimer);
   if (timerInterval) clearInterval(timerInterval);
